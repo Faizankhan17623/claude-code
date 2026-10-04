@@ -91,16 +91,20 @@ def extract_frontmatter(content: str) -> tuple[Dict[str, Any], str]:
 
     Supports multi-line dictionary items in lists by preserving indentation.
     """
-    if not content.startswith('---'):
+    content_lines = content.split('\n')
+    if content_lines[0].strip() != '---':
         return {}, content
 
-    # Split on --- markers
-    parts = content.split('---', 2)
-    if len(parts) < 3:
+    # The frontmatter ends at the next line that is exactly ---, so a ---
+    # inside a value (such as a regex pattern) doesn't cut it short
+    for end, line in enumerate(content_lines[1:], start=1):
+        if line.strip() == '---':
+            break
+    else:
         return {}, content
 
-    frontmatter_text = parts[1]
-    message = parts[2].strip()
+    frontmatter_text = '\n'.join(content_lines[1:end])
+    message = '\n'.join(content_lines[end + 1:]).strip()
 
     # Simple YAML parser that handles indented list items
     frontmatter = {}
@@ -248,7 +252,7 @@ def load_rule_file(file_path: str) -> Optional[Rule]:
         Rule object or None if file is invalid.
     """
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
 
         frontmatter, message = extract_frontmatter(content)
